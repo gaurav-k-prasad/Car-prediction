@@ -1,6 +1,12 @@
 import pickle as pkl
 import xgboost as xgb
 import numpy as np
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
+# Initialize Flask app
+app = Flask(__name__)
+CORS(app)
 
 with open("XGBModel.pkl", "rb") as file:
     xgmodel = pkl.load(file)
@@ -47,7 +53,7 @@ def predict_price(
         ],
         dtype=np.float64,
     ).reshape(1, -1)
-    print(features)
+    print(f"{features=}")
 
     dmatrix = xgb.DMatrix(features)
 
@@ -57,3 +63,46 @@ def predict_price(
 
 
 print(predict_price("Kia", "Rio", 2020, 4.2, "Diesel", "Manual", 289944, 3, 5))
+
+
+@app.route("/predict", methods=["POST"])
+def predict():
+    try:
+        # Get JSON data from the POST request
+        data = request.get_json()
+        print(data)
+
+        # Extract features from the request
+        brand = data["brand"]
+        model = data["model"]
+        year = data["year"]
+        engine_size = data["engineSize"]
+        fuel_type = data["fuelType"]
+        transmission = data["transmission"]
+        mileage = data["mileage"]
+        doors = data["doors"]
+        owner_count = data["ownerCount"]
+
+        # Predict the price
+        predicted_price = predict_price(
+            brand,
+            model,
+            year,
+            engine_size,
+            fuel_type,
+            transmission,
+            mileage,
+            doors,
+            owner_count,
+        )
+
+        # Return the result as JSON
+        return jsonify({"predicted_price": float(round(predicted_price))})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+# Run the app
+if __name__ == "__main__":
+    app.run(debug=True)
